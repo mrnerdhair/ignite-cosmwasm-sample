@@ -87,6 +87,15 @@ func NewRootCmd() *cobra.Command {
 		autoCliOpts.Modules[name] = mod
 	}
 
+	// Since the Wasm module doesn't support dependency injection,
+	// we need to manually register the module on the client side.
+	// This needs to be removed after Wasm supports App Wiring.
+	wasmModules := app.RegisterWasm(clientCtx.InterfaceRegistry)
+	for name, mod := range wasmModules {
+		moduleBasicManager[name] = module.CoreAppModuleBasicAdaptor(name, mod)
+		autoCliOpts.Modules[name] = mod
+	}
+
 	initRootCmd(rootCmd, clientCtx.TxConfig, moduleBasicManager)
 
 	overwriteFlagDefaults(rootCmd, map[string]string{
