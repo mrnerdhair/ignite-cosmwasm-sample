@@ -207,6 +207,9 @@ func New(
 		// merge the AppConfig and other configuration in one config
 		appConfig = depinject.Configs(
 			AppConfig(),
+			depinject.Provide(
+				ProvideCustomSignModeHandlers,
+			),
 			depinject.Supply(
 				appOpts, // supply app options
 				logger,  // supply logger

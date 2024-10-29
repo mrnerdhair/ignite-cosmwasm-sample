@@ -7,6 +7,8 @@ import (
 	"cosmossdk.io/client/v2/autocli"
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
+	txsigning "cosmossdk.io/x/tx/signing"
+	"cosmossdk.io/x/tx/signing/textual"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -139,13 +141,28 @@ func ProvideClientContext(
 		WithInput(os.Stdin).
 		WithAccountRetriever(types.AccountRetriever{}).
 		WithHomeDir(app.DefaultNodeHome).
-		WithViper(app.Name) // env variable prefix
+		WithViper(app.Name). // env variable prefix
+		WithSignModeStr("textual")
 
 	// Read the config again to overwrite the default values with the values from the config file
 	clientCtx, _ = config.ReadFromClientConfig(clientCtx)
 
 	// textual is enabled by default, we need to re-create the tx config grpc instead of bank keeper.
 	txConfigOpts.TextualCoinMetadataQueryFn = authtxconfig.NewGRPCCoinMetadataQueryFn(clientCtx)
+
+	textualSignModeHandler, err := textual.NewSignModeHandler(textual.SignModeOptions{
+		CoinMetadataQuerier: txConfigOpts.TextualCoinMetadataQueryFn,
+		FileResolver:        txConfigOpts.SigningOptions.FileResolver,
+		TypeResolver:        txConfigOpts.SigningOptions.TypeResolver,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	txConfigOpts.CustomSignModes = []txsigning.SignModeHandler{
+		app.NewEIP191TextualSignModeHandler(textualSignModeHandler),
+	}
+
 	txConfig, err := tx.NewTxConfigWithOptions(clientCtx.Codec, txConfigOpts)
 	if err != nil {
 		panic(err)
